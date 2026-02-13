@@ -81,6 +81,36 @@ func TestGenerateSeedReproducibility(t *testing.T) {
 	}
 }
 
+func BenchmarkGenerateSequential(b *testing.B) {
+	opts := Options{
+		Rows:       4,
+		Cols:       4,
+		Difficulty: puzzle.Medium,
+		Seed:       12345,
+	}
+	for i := 0; i < b.N; i++ {
+		_, err := generateSequential(opts)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkGenerateParallel(b *testing.B) {
+	opts := Options{
+		Rows:       4,
+		Cols:       4,
+		Difficulty: puzzle.Medium,
+		Seed:       12345,
+	}
+	for i := 0; i < b.N; i++ {
+		_, err := generateParallel(opts)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func TestGenerateDifficulties(t *testing.T) {
 	for _, diff := range []puzzle.Difficulty{puzzle.Easy, puzzle.Medium, puzzle.Hard} {
 		t.Run(diff.String(), func(t *testing.T) {
