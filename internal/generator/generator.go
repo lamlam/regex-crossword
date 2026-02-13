@@ -1,11 +1,14 @@
 package generator
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/lamlam/regex-crossword/internal/puzzle"
@@ -24,17 +27,77 @@ type Options struct {
 }
 
 // Generate creates a new regex crossword puzzle.
+// When seed is unspecified (0), multiple goroutines attempt generation in
+// parallel for speed. When a specific seed is given, generation runs
+// sequentially to guarantee reproducibility.
 func Generate(opts Options) (*puzzle.Puzzle, error) {
 	if opts.Seed == 0 {
 		opts.Seed = time.Now().UnixNano()
+		return generateParallel(opts)
 	}
+	return generateSequential(opts)
+}
+
+func generateSequential(opts Options) (*puzzle.Puzzle, error) {
 	rng := rand.New(rand.NewSource(opts.Seed))
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		p := generateAndRefine(rng, opts)
-		if p != nil {
+		if p := generateAndRefine(rng, opts); p != nil {
 			return p, nil
 		}
+	}
+
+	return nil, fmt.Errorf("failed to generate a puzzle with a unique solution after %d attempts", maxRetries)
+}
+
+func generateParallel(opts Options) (*puzzle.Puzzle, error) {
+	workers := runtime.NumCPU()
+	if workers > maxRetries {
+		workers = maxRetries
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ch := make(chan *puzzle.Puzzle, 1)
+	var wg sync.WaitGroup
+
+	retriesPerWorker := (maxRetries + workers - 1) / workers
+
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func(workerID int) {
+			defer wg.Done()
+			workerSeed := opts.Seed + int64(workerID)
+			rng := rand.New(rand.NewSource(workerSeed))
+			workerOpts := opts
+			workerOpts.Seed = workerSeed
+
+			for attempt := 0; attempt < retriesPerWorker; attempt++ {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+				if p := generateAndRefine(rng, workerOpts); p != nil {
+					select {
+					case ch <- p:
+						cancel()
+					default:
+					}
+					return
+				}
+			}
+		}(i)
+	}
+
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
+
+	if p, ok := <-ch; ok {
+		return p, nil
 	}
 
 	return nil, fmt.Errorf("failed to generate a puzzle with a unique solution after %d attempts", maxRetries)
