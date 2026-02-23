@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "Regex Crossword Puzzle",
+  "description": "A regex crossword puzzle with hints and solution",
+  "type": "object",
+  "properties": {
+    "rows": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 8,
+      "description": "Number of rows in the puzzle grid"
+    },
+    "cols": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 8,
+      "description": "Number of columns in the puzzle grid"
+    },
+    "difficulty": {
+      "type": "string",
+      "enum": ["easy", "medium", "hard"],
+      "description": "Puzzle difficulty level"
+    },
+    "seed": {
+      "type": "integer",
+      "description": "Random seed used to generate the puzzle"
+    },
+    "alphabet": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Character set used in the puzzle"
+    },
+    "rowHints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Regex patterns for each row"
+    },
+    "colHints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Regex patterns for each column"
+    },
+    "solution": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1
+        }
+      },
+      "description": "Solution grid as a 2D array of single characters"
+    }
+  },
+  "required": ["rows", "cols", "difficulty", "seed", "alphabet", "rowHints", "colHints", "solution"],
+  "additionalProperties": false
+}

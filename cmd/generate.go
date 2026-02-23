@@ -17,6 +17,7 @@ var (
 	difficulty   string
 	seed         int64
 	showSolution bool
+	format       string
 )
 
 var generateCmd = &cobra.Command{
@@ -47,7 +48,16 @@ var generateCmd = &cobra.Command{
 			return err
 		}
 
-		display.Print(os.Stdout, p, showSolution)
+		switch format {
+		case "text":
+			display.Print(os.Stdout, p, showSolution)
+		case "json":
+			if err := display.WriteJSON(os.Stdout, p); err != nil {
+				return fmt.Errorf("failed to write JSON: %w", err)
+			}
+		default:
+			return fmt.Errorf("unknown format: %q (must be text or json)", format)
+		}
 		return nil
 	},
 }
@@ -58,6 +68,7 @@ func init() {
 	generateCmd.Flags().StringVarP(&difficulty, "difficulty", "d", "medium", "Difficulty level (easy, medium, hard)")
 	generateCmd.Flags().Int64VarP(&seed, "seed", "s", 0, "Random seed (0 for random)")
 	generateCmd.Flags().BoolVar(&showSolution, "show-solution", false, "Show the solution")
+	generateCmd.Flags().StringVarP(&format, "format", "f", "text", "Output format (text, json)")
 
 	rootCmd.AddCommand(generateCmd)
 }
