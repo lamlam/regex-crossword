@@ -2,6 +2,7 @@ package display
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"strings"
 
@@ -40,6 +41,45 @@ func toPuzzleJSON(p *puzzle.Puzzle) PuzzleJSON {
 		ColHints:   p.ColHints,
 		Solution:   solution,
 	}
+}
+
+// fromPuzzleJSON converts a PuzzleJSON back to a Puzzle.
+func fromPuzzleJSON(pj PuzzleJSON) (*puzzle.Puzzle, error) {
+	diff, err := puzzle.ParseDifficulty(pj.Difficulty)
+	if err != nil {
+		return nil, err
+	}
+
+	solution := make([][]byte, pj.Rows)
+	for r := 0; r < pj.Rows; r++ {
+		solution[r] = make([]byte, pj.Cols)
+		for c := 0; c < pj.Cols; c++ {
+			if len(pj.Solution[r][c]) != 1 {
+				return nil, fmt.Errorf("invalid solution cell [%d][%d]: expected single character, got %q", r, c, pj.Solution[r][c])
+			}
+			solution[r][c] = pj.Solution[r][c][0]
+		}
+	}
+
+	return &puzzle.Puzzle{
+		Rows:       pj.Rows,
+		Cols:       pj.Cols,
+		Difficulty: diff,
+		Seed:       pj.Seed,
+		Alphabet:   pj.Alphabet,
+		RowHints:   pj.RowHints,
+		ColHints:   pj.ColHints,
+		Solution:   solution,
+	}, nil
+}
+
+// ReadJSON reads a JSON-encoded puzzle from the given reader.
+func ReadJSON(r io.Reader) (*puzzle.Puzzle, error) {
+	var pj PuzzleJSON
+	if err := json.NewDecoder(r).Decode(&pj); err != nil {
+		return nil, fmt.Errorf("failed to decode JSON: %w", err)
+	}
+	return fromPuzzleJSON(pj)
 }
 
 // WriteJSON writes the puzzle as indented JSON to the given writer.

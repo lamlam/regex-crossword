@@ -3,6 +3,7 @@ package display
 import (
 	"bytes"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/lamlam/regex-crossword/internal/puzzle"
@@ -84,6 +85,99 @@ func TestDifficultyStringConversion(t *testing.T) {
 		pj := toPuzzleJSON(p)
 		if pj.Difficulty != tt.want {
 			t.Errorf("difficulty %v: got %q, want %q", tt.diff, pj.Difficulty, tt.want)
+		}
+	}
+}
+
+func TestReadJSON(t *testing.T) {
+	input := `{
+		"rows": 2,
+		"cols": 2,
+		"difficulty": "medium",
+		"seed": 42,
+		"alphabet": "ABCD",
+		"rowHints": ["^A.$", "^.B$"],
+		"colHints": ["^A.$", "^.B$"],
+		"solution": [["A", "B"], ["A", "B"]]
+	}`
+	p, err := ReadJSON(strings.NewReader(input))
+	if err != nil {
+		t.Fatalf("ReadJSON returned error: %v", err)
+	}
+
+	if p.Rows != 2 || p.Cols != 2 {
+		t.Errorf("expected 2x2, got %dx%d", p.Rows, p.Cols)
+	}
+	if p.Difficulty != puzzle.Medium {
+		t.Errorf("expected Medium, got %v", p.Difficulty)
+	}
+	if p.Seed != 42 {
+		t.Errorf("expected seed 42, got %d", p.Seed)
+	}
+	if p.Alphabet != "ABCD" {
+		t.Errorf("expected alphabet \"ABCD\", got %q", p.Alphabet)
+	}
+	if len(p.RowHints) != 2 || p.RowHints[0] != "^A.$" {
+		t.Errorf("unexpected rowHints: %v", p.RowHints)
+	}
+	if len(p.ColHints) != 2 || p.ColHints[0] != "^A.$" {
+		t.Errorf("unexpected colHints: %v", p.ColHints)
+	}
+	if len(p.Solution) != 2 || len(p.Solution[0]) != 2 {
+		t.Fatalf("unexpected solution dimensions")
+	}
+	if p.Solution[0][0] != 'A' || p.Solution[0][1] != 'B' {
+		t.Errorf("unexpected solution row 0: %v", p.Solution[0])
+	}
+	if p.Solution[1][0] != 'A' || p.Solution[1][1] != 'B' {
+		t.Errorf("unexpected solution row 1: %v", p.Solution[1])
+	}
+}
+
+func TestReadJSON_InvalidJSON(t *testing.T) {
+	_, err := ReadJSON(strings.NewReader("not json"))
+	if err == nil {
+		t.Error("expected error for invalid JSON")
+	}
+}
+
+func TestReadJSON_InvalidDifficulty(t *testing.T) {
+	input := `{"rows":1,"cols":1,"difficulty":"impossible","seed":1,"alphabet":"A","rowHints":["^A$"],"colHints":["^A$"],"solution":[["A"]]}`
+	_, err := ReadJSON(strings.NewReader(input))
+	if err == nil {
+		t.Error("expected error for invalid difficulty")
+	}
+}
+
+func TestWriteReadRoundTrip(t *testing.T) {
+	original := testPuzzle()
+	var buf bytes.Buffer
+	if err := WriteJSON(&buf, original); err != nil {
+		t.Fatalf("WriteJSON returned error: %v", err)
+	}
+
+	restored, err := ReadJSON(&buf)
+	if err != nil {
+		t.Fatalf("ReadJSON returned error: %v", err)
+	}
+
+	if original.Rows != restored.Rows || original.Cols != restored.Cols {
+		t.Errorf("dimensions mismatch: %dx%d vs %dx%d", original.Rows, original.Cols, restored.Rows, restored.Cols)
+	}
+	if original.Difficulty != restored.Difficulty {
+		t.Errorf("difficulty mismatch: %v vs %v", original.Difficulty, restored.Difficulty)
+	}
+	if original.Seed != restored.Seed {
+		t.Errorf("seed mismatch: %d vs %d", original.Seed, restored.Seed)
+	}
+	if original.Alphabet != restored.Alphabet {
+		t.Errorf("alphabet mismatch: %q vs %q", original.Alphabet, restored.Alphabet)
+	}
+	for r := range original.Solution {
+		for c := range original.Solution[r] {
+			if original.Solution[r][c] != restored.Solution[r][c] {
+				t.Errorf("solution[%d][%d] mismatch: %c vs %c", r, c, original.Solution[r][c], restored.Solution[r][c])
+			}
 		}
 	}
 }
