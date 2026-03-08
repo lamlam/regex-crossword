@@ -52,7 +52,7 @@ var generateCmd = &cobra.Command{
 		case "text":
 			display.Print(os.Stdout, p, showSolution)
 		case "json":
-			if err := display.WriteJSON(os.Stdout, p); err != nil {
+			if err := display.WriteJSON(os.Stdout, p, showSolution); err != nil {
 				return fmt.Errorf("failed to write JSON: %w", err)
 			}
 		default:

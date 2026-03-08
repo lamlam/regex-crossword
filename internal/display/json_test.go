@@ -25,7 +25,7 @@ func testPuzzle() *puzzle.Puzzle {
 func TestWriteJSON(t *testing.T) {
 	p := testPuzzle()
 	var buf bytes.Buffer
-	if err := WriteJSON(&buf, p); err != nil {
+	if err := WriteJSON(&buf, p, true); err != nil {
 		t.Fatalf("WriteJSON returned error: %v", err)
 	}
 
@@ -152,7 +152,7 @@ func TestReadJSON_InvalidDifficulty(t *testing.T) {
 func TestWriteReadRoundTrip(t *testing.T) {
 	original := testPuzzle()
 	var buf bytes.Buffer
-	if err := WriteJSON(&buf, original); err != nil {
+	if err := WriteJSON(&buf, original, true); err != nil {
 		t.Fatalf("WriteJSON returned error: %v", err)
 	}
 
@@ -179,6 +179,54 @@ func TestWriteReadRoundTrip(t *testing.T) {
 				t.Errorf("solution[%d][%d] mismatch: %c vs %c", r, c, original.Solution[r][c], restored.Solution[r][c])
 			}
 		}
+	}
+}
+
+func TestWriteJSON_WithoutSolution(t *testing.T) {
+	p := testPuzzle()
+	var buf bytes.Buffer
+	if err := WriteJSON(&buf, p, false); err != nil {
+		t.Fatalf("WriteJSON returned error: %v", err)
+	}
+
+	var got PuzzleJSON
+	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
+		t.Fatalf("failed to unmarshal output: %v", err)
+	}
+
+	if got.Rows != 2 || got.Cols != 2 {
+		t.Errorf("expected 2x2, got %dx%d", got.Rows, got.Cols)
+	}
+	if got.Solution != nil {
+		t.Errorf("expected nil solution, got %v", got.Solution)
+	}
+
+	// Verify "solution" key is not present in raw JSON.
+	if strings.Contains(buf.String(), `"solution"`) {
+		t.Error("expected solution field to be omitted from JSON output")
+	}
+}
+
+func TestReadJSON_WithoutSolution(t *testing.T) {
+	input := `{
+		"rows": 2,
+		"cols": 2,
+		"difficulty": "medium",
+		"seed": 42,
+		"alphabet": "ABCD",
+		"rowHints": ["^A.$", "^.B$"],
+		"colHints": ["^A.$", "^.B$"]
+	}`
+	p, err := ReadJSON(strings.NewReader(input))
+	if err != nil {
+		t.Fatalf("ReadJSON returned error: %v", err)
+	}
+
+	if p.Rows != 2 || p.Cols != 2 {
+		t.Errorf("expected 2x2, got %dx%d", p.Rows, p.Cols)
+	}
+	if p.Solution != nil {
+		t.Errorf("expected nil solution, got %v", p.Solution)
 	}
 }
 

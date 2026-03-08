@@ -18,7 +18,7 @@ type PuzzleJSON struct {
 	Alphabet   string     `json:"alphabet"`
 	RowHints   []string   `json:"rowHints"`
 	ColHints   []string   `json:"colHints"`
-	Solution   [][]string `json:"solution"`
+	Solution   [][]string `json:"solution,omitempty"`
 }
 
 // toPuzzleJSON converts a Puzzle to its JSON representation.
@@ -50,18 +50,7 @@ func fromPuzzleJSON(pj PuzzleJSON) (*puzzle.Puzzle, error) {
 		return nil, err
 	}
 
-	solution := make([][]byte, pj.Rows)
-	for r := 0; r < pj.Rows; r++ {
-		solution[r] = make([]byte, pj.Cols)
-		for c := 0; c < pj.Cols; c++ {
-			if len(pj.Solution[r][c]) != 1 {
-				return nil, fmt.Errorf("invalid solution cell [%d][%d]: expected single character, got %q", r, c, pj.Solution[r][c])
-			}
-			solution[r][c] = pj.Solution[r][c][0]
-		}
-	}
-
-	return &puzzle.Puzzle{
+	p := &puzzle.Puzzle{
 		Rows:       pj.Rows,
 		Cols:       pj.Cols,
 		Difficulty: diff,
@@ -69,8 +58,23 @@ func fromPuzzleJSON(pj PuzzleJSON) (*puzzle.Puzzle, error) {
 		Alphabet:   pj.Alphabet,
 		RowHints:   pj.RowHints,
 		ColHints:   pj.ColHints,
-		Solution:   solution,
-	}, nil
+	}
+
+	if pj.Solution != nil {
+		solution := make([][]byte, pj.Rows)
+		for r := 0; r < pj.Rows; r++ {
+			solution[r] = make([]byte, pj.Cols)
+			for c := 0; c < pj.Cols; c++ {
+				if len(pj.Solution[r][c]) != 1 {
+					return nil, fmt.Errorf("invalid solution cell [%d][%d]: expected single character, got %q", r, c, pj.Solution[r][c])
+				}
+				solution[r][c] = pj.Solution[r][c][0]
+			}
+		}
+		p.Solution = solution
+	}
+
+	return p, nil
 }
 
 // ReadJSON reads a JSON-encoded puzzle from the given reader.
@@ -83,8 +87,12 @@ func ReadJSON(r io.Reader) (*puzzle.Puzzle, error) {
 }
 
 // WriteJSON writes the puzzle as indented JSON to the given writer.
-func WriteJSON(w io.Writer, p *puzzle.Puzzle) error {
+// When showSolution is false, the solution field is omitted.
+func WriteJSON(w io.Writer, p *puzzle.Puzzle, showSolution bool) error {
 	pj := toPuzzleJSON(p)
+	if !showSolution {
+		pj.Solution = nil
+	}
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	return enc.Encode(pj)

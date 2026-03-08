@@ -35,8 +35,11 @@ regex-crossword generate -r 5 -c 5 -d hard --show-solution
 # シードを指定して再現可能な生成
 regex-crossword generate -r 3 -c 3 --seed 42 --show-solution
 
-# JSON形式で出力
+# JSON形式で出力（解答なし）
 regex-crossword generate -f json --seed 42
+
+# JSON形式で解答付き出力
+regex-crossword generate -f json --seed 42 --show-solution
 ```
 
 ### JSON形式のパズル表示
